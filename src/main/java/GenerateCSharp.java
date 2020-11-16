@@ -4,42 +4,44 @@ import org.apache.poi.xwpf.usermodel.*;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Scanner;
 
 public class GenerateCSharp {
 
     public static void main(String[] args) throws IOException {
+        Scanner sc = new Scanner(System.in);
+        String filePath = null;
+        File file;
         do {
-            String filePath, tableName;
-            int tableIndex = -1;
-            if (args.length < 3) {
-                System.out.println("请输入Word文件路径:");
-//            filePath = new BufferedReader(new InputStreamReader(System.in)).readLine();
-                filePath = "/Volumes/Data/Document/卫监/全民健康信息平台建设及投资运营项目平台共享数据集V1.5.docx";
-                //System.out.println("请输入Word文件中表格索引");
-                //tableIndex = Integer.parseInt(new BufferedReader(new InputStreamReader(System.in)).readLine());
-                System.out.println("请输入表名");
-                tableName = new BufferedReader(new InputStreamReader(System.in)).readLine();
-            } else {
-                filePath = args[0];
-                tableIndex = Integer.parseInt(args[1]);
-                tableName = args[2];
-            }
-            testWord(filePath, tableIndex, tableName);
-            System.out.println("温馨提示：按Q退出，任意键继续");
-        } while (!new BufferedReader(new InputStreamReader(System.in)).readLine().equalsIgnoreCase("q"));
+            System.out.println("请输入Word文件路径:");
+            file = new File(sc.nextLine());
+            if (!file.exists() || !file.isFile())
+                System.out.println("文件路径无效！");
+            else
+                filePath = file.getPath();
+        } while (filePath == null);
+        do {
+            String tableName;
+            System.out.println("当前Word文件路径：" + filePath);
+            System.out.println("请输入表名");
+            tableName = sc.nextLine();
+            testWord(filePath, tableName);
+            System.out.println("温馨提示：输入Q退出，回车键继续");
+        } while (!sc.nextLine().equalsIgnoreCase("q"));
     }
 
-    public static void testWord(String filePath, int tableIndex, String tableName) {
+    public static void testWord(String filePath, String tableName) {
         try {
-            FileInputStream in = new FileInputStream(filePath);//载入文档 //如果是office2007  docx格式
+            if (StringUtils.isBlank(tableName)) {
+                System.out.println("表名不能为空！");
+                return;
+            }
             if (filePath.toLowerCase().endsWith("docx")) {
                 //word 2007 图片不会被读取， 表格中的数据会被放在字符串的最后
+                FileInputStream in = new FileInputStream(filePath);//载入文档 //如果是office2007  docx格式
                 XWPFDocument xwpf = new XWPFDocument(in);//得到word文档的信息
                 List<XWPFParagraph> listParagraphs = xwpf.getParagraphs();//得到段落信息
                 Iterator<XWPFParagraph> it = listParagraphs.iterator();
@@ -105,9 +107,10 @@ public class GenerateCSharp {
                                 }
                             }
                             colType = colType + (notNull ? "" : "?");
-                        }
-                        else if (colType.equalsIgnoreCase("blob")) {
+                        } else if (colType.equalsIgnoreCase("blob")) {
                             colType = "Byte[]";
+                        } else if (colType.equalsIgnoreCase("INTEGER")) {
+                            colType = "int";
                         }
 
                         sb.append(String.format("/// <summary>%n/// %s%n", comment));
