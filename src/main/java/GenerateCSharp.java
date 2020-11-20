@@ -70,24 +70,31 @@ public class GenerateCSharp {
                 List<XWPFTableRow> rows = table.getRows();
                 int int32MaxLen = String.format("%d", Integer.MAX_VALUE).length();
                 StringBuilder sb = new StringBuilder();
-                sb.append(String.format("using System;%nnamespace Neptune.HealthBureau.WuXi.Data.Poco%n{%npublic class %s : UpdateRecordBase%n{%n", tableName));
+                sb.append(String.format("using System;%nusing Neptune.Data;%nusing NPoco;%n" +
+                        "using System.ComponentModel.DataAnnotations;%n%n" +
+                        "namespace Neptune.HealthBureau.WuXi.Data.Poco%n{%n" +
+                        "[TableName(\"%s\")]%npublic class %s : UpdateRecordBase, IDbRecord%n{%n", tableName, tableName));
                 //读取每一行数据
                 for (int i = 1; i < rows.size(); i++) {
                     XWPFTableRow row = rows.get(i);
                     //读取每一列数据
                     List<XWPFTableCell> cells = row.getTableCells();
+                    if (cells.size() < 7) continue;
                     String colName = cells.get(1).getText().trim();
                     if (!StringUtils.isEmpty(colName) && !StringUtils.isBlank(colName) && !StringUtils.isWhitespace(colName)) {
                         String comment = cells.get(2).getText();
                         String commentEx = cells.get(5).getText();
+                        boolean isIndex = "FBD4B4".equals(cells.get(5).getColor());
                         String commentEx2 = cells.get(6).getText();
                         boolean notNull = cells.get(4).getText().equals("必填");
                         String colType = cells.get(3).getText().replace("（", "(").replace("）", ")").trim();
+                        String varcharLen = null;
                         if (colType.equalsIgnoreCase("date"))
                             colType = "DateTime" + (notNull ? "" : "?");
-                        else if (StringUtils.startsWithIgnoreCase(colType, "VARCHAR"))
+                        else if (StringUtils.startsWithIgnoreCase(colType, "VARCHAR")) {
+                            varcharLen = StringUtils.substringBetween(colType, "(", ")");
                             colType = "String";
-                        else if (StringUtils.startsWithIgnoreCase(colType, "NUMBER") || StringUtils.startsWithIgnoreCase(colType, "numeric")) {
+                        } else if (StringUtils.startsWithIgnoreCase(colType, "NUMBER") || StringUtils.startsWithIgnoreCase(colType, "numeric")) {
                             String numberLen = StringUtils.substringBetween(colType, "(", ")");
                             if (numberLen == null)
                                 colType = "int";
@@ -119,6 +126,12 @@ public class GenerateCSharp {
                         if (commentEx2 != null && StringUtils.isNotEmpty(commentEx2) && StringUtils.isNotBlank(commentEx2))
                             sb.append(String.format("/// %s%n", commentEx2));
                         sb.append(String.format("/// </summary>%n"));
+                        if (notNull)
+                            sb.append(String.format("[Required]%n"));
+                        if (varcharLen != null)
+                            sb.append(String.format("[StringLength(%s)]%n", varcharLen));
+                        if (isIndex)
+                            sb.append(String.format("[Index]%n"));
                         sb.append(String.format("public %s %s {get; set;}%n", colType, colName));
                     }
                 }
